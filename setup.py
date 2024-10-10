@@ -2,7 +2,7 @@ import sys
 from cx_Freeze import setup, Executable
 
 
-dependecies = {"packages": ["os"], "includes": ["tkinter", "pyautogui", "colorama", "OpenCV"]}
+dependecies = {"packages": ["os"], "includes": ["tkinter", "pyautogui", "colorama", "OpenCV", "threading"]}
 
 base = None
 if sys.platform == "win32":

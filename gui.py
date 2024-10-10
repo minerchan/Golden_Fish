@@ -1,11 +1,20 @@
 import pyautogui
 from pathlib import Path
 from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage
+from PIL import ImageGrab
+import pygetwindow as gw
 import time
+import threading
+import sys
+
+
+
 
 # =================================== IMPORTANT FUNCTIONS AND VARIABLES  =================================================
 
 window = Tk()
+running = False
+
 
 canvas = Canvas(
     window,
@@ -17,25 +26,37 @@ canvas = Canvas(
     relief = "ridge"
 )
 
+screen_width, screen_height = pyautogui.size()
 
-def begin():
-    screen_width, screen_height = pyautogui.size()
-    left_region = (0, 0, screen_width // 2, screen_height)
-    pyautogui.click(left_region)
-    time.sleep(1)
-    return left_region
+right_region = (screen_width // 2, 0, screen_width // 2, screen_height)
+left_region = (0, 0, screen_width // 2, screen_height)
 
+def take_screenshot():
+    try:
+        window = gw.getWindowsWithTitle("Goldenfish")[0]  
+        x = window.left
+        y = window.top
+        width = window.width
+        height = window.height
+        screenshot = ImageGrab.grab(bbox=(x, y, x + width, y + height))
+        screenshot.save("Goldenfish_results.png")
+        
+    except Exception as e:
+        print(f"Erro ao capturar a tela: {e}")
+        
 def update_text(text):
     canvas.itemconfig(display, text=text)
+    window.update()
     
-def update_items(items):
-    canvas.itemconfig(items, text=str("x" + items))
+def update_items(farmed_item):
+    canvas.itemconfig(display_items, text=("x " + farmed_item))
+    window.update()
     
 def update_money(money):
-    canvas.itemconfig(money, text=str("R$" + money))
+    canvas.itemconfig(display_money, text=("~R$ " + money))
+    window.update()
 
 def move_1():
-    
     press('K')
     time.sleep(0.2)
     press('K')
@@ -59,16 +80,6 @@ def move_4():
     press('S')
     press('K')
     
-    
-def click_on_pokeball():
-    pokeball = (404, 467, 130, 25)
-    pyautogui.moveTo(pokeball, duration=0.2)
-    pyautogui.click()
-    # Tempo da ball rolar 3x
-    time.sleep(7)
-
-
-
 # Esta função espera uma string no 1 argumento um number no 2
 def keep_press(tecla, segundos):
     # aperta a tecla
@@ -82,7 +93,7 @@ def keep_press(tecla, segundos):
 
 
 
-def going_to_the_pokecenter(display_text):
+def going_to_the_pokecenter():
     update_text("Using teleport...")
     press('7')
     time.sleep(4)
@@ -103,9 +114,13 @@ def press(tecla):
 # =================================== CORE =================================================
 
 def fishing():
+    update_text("initiate...")
+    global running 
     pokemon_killed_by_payday = 0
     average_money_per_pokemon = 487
-    left_region = begin()
+    time.sleep(1)
+    pyautogui.moveTo(left_region)
+    pyautogui.click(left_region)
     thief = 25
     payday = 20
     going_to_the_pokecenter()
@@ -114,9 +129,10 @@ def fishing():
     keep_press('D', 0.2)
     #  HORA DE PESCAR
     farmed_item = 0
-    controle_geral = False
-    while controle_geral is False:
-        if(thief == 0 or payday == 0):
+    while running:
+        if not running:
+            break
+        if(thief == 15 or payday == 10):
             going_to_the_pokecenter()
             thief = 25
             payday = 20
@@ -124,81 +140,76 @@ def fishing():
             keep_press('S', 2)
             keep_press('D', 0.2)
         # =================================== BLOCO PARA CONFERIR SE TEM ITEM NO POKÉMON ================================================    
-        contador_de_item_segurado = 0
-        controle_de_item_segurado = False
-        while controle_de_item_segurado is False:
+        item_attempt_counter = 0
+        hold_control_item = False
+        
+        while hold_control_item is False and running:
             try:
-                item_segurado = pyautogui.locateOnScreen('./imagens/itemsegurado.png', confidence=0.9)
+                hold_item = pyautogui.locateOnScreen('./image/hold_item.png', confidence=0.9)
                 farmed_item = farmed_item + 1
                 update_text("Storing the stolen item")
-                pyautogui.moveTo(item_segurado)
+                update_items(str(farmed_item))
+                pyautogui.moveTo(hold_item)
                 pyautogui.click()
                 time.sleep(0.5)
                 keep_press('S', 0.3)
                 press('K')
                 time.sleep(0.5)
-                controle_de_item_segurado = True
+                hold_control_item = True
             except pyautogui.ImageNotFoundException:
-                contador_de_item_segurado = contador_de_item_segurado + 1
-                if(contador_de_item_segurado == 10):
-                    controle_de_item_segurado = True
+                item_attempt_counter = item_attempt_counter + 1
+                if(item_attempt_counter == 10):
+                    hold_control_item = True
         
     # =================================== BLOCO PARA PESCAR ATÉ ENTRAR EM LUTA ================================================
-        controle_de_pesca = False
-        while controle_de_pesca is False:
+        fish_control = False
+        while fish_control is False and running:
             try:
-                entramos_em_luta = pyautogui.locateOnScreen('./imagens/entrouemluta.png', confidence=0.8, region=(left_region))
-                print("Entramos em luta")
-                controle_de_pesca = True
-                # tempo para interface descansar
+                entramos_em_luta = pyautogui.locateOnScreen('./image/found_fight.png', confidence=0.8, region=(left_region))
+                pyautogui.moveTo(entramos_em_luta)
+                update_text("I found a fight")
                 time.sleep(1)
+                fish_control = True
             except pyautogui.ImageNotFoundException:
+                update_text("Fishing...")
                 keep_press('8', 0.5)
                 time.sleep(3)
                 press('K')
         
     # =================================== BLOCO DE IDENTIFICAÇÃO ================================================
-        controle_de_identificacao = False
-        contador_de_checagem_luvdisc = 0
-        while controle_de_identificacao is False:
+        identification_control = False
+        luvidisc_attempt_counter = 0
+        while identification_control is False and running:
             try:
-                luvdisc = pyautogui.locateOnScreen('./imagens/luvdisc.png', confidence=0.8, region=(left_region))
-                print("É um luvdisc")
-                controle_pra_ver_se_foge_ou_mata = False
-                controle_de_identificacao = True
+                luvdisc = pyautogui.locateOnScreen('./image/luvdisc.png', confidence=0.8, region=(left_region))
+                pyautogui.moveTo(luvdisc)
+                update_text("It's a luvdisc!")
+                payday_kill = False
+                identification_control = True
             except pyautogui.ImageNotFoundException:
-                contador_de_checagem_luvdisc = contador_de_checagem_luvdisc + 1
+                luvidisc_attempt_counter = luvidisc_attempt_counter + 1
                 time.sleep(0.1)
-                if(contador_de_checagem_luvdisc == 10):
-                    "Não era um luvdisc"
-                    controle_de_identificacao = True
-                    controle_pra_ver_se_foge_ou_mata = True
-                    
+                if(luvidisc_attempt_counter == 10):
+                    update_text("It's not a luvdisc...")
+                    identification_control = True
+                    payday_kill = True
+                   
     # =================================== BLOCO PARA VER SE FOGE OU MATA ================================================
-        if(controle_pra_ver_se_foge_ou_mata is False):
-            print("Vou farmar item tirei")
+        if not payday_kill and running:
             time.sleep(2)
             move_2()
             thief = thief - 1
-            print("Temos " + str(thief) + " moves de thief")
             time.sleep(10)
-            print("Aqui acaba o tempo de espera pós luvdisc")
             
-        else:
-            print("Vou farmar dinheiro")
+        elif running:
+            update_text("Killing with payday")
             move_1()
             payday = payday - 1
-            print("Temos " + str(payday) + " moves de payday")
             pokemon_killed_by_payday = pokemon_killed_by_payday + 1
-            update_money(str(pokemon_killed_by_payday * average_money_per_pokemon))
-            print("Dinheiro farmado com itens e pokes R$:" + str(((farmed_item * 7000) + (pokemon_killed_by_payday * average_money_per_pokemon))))
+            update_money(str((pokemon_killed_by_payday * average_money_per_pokemon) + (farmed_item * 5000)))
             time.sleep(9)
-            
         
-        print("Número de itens farmados: " + str(farmed_item))
-        
-        print("==============================")
-
+          
 
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path(r"C:\Users\Samuel\Desktop\GOLDEN_FISH\build\assets\frame0")
@@ -232,11 +243,17 @@ def on_leave(event):
     canvas.config(cursor="")
 
 def stop_function(event):
-    controle_geral = True
+    update_text("Stopping...")
+    global running
+    running = False
+    take_screenshot()
+    sys.exit()
 
 def start_function(event):
-    print("start")
-    canvas.itemconfig(display, text="start")
+    global running
+    running = True
+    fishing_thread = threading.Thread(target=fishing)
+    fishing_thread.start()
 
 def bind_cursor(elements, function):
     for element in elements:
@@ -248,8 +265,8 @@ def bind_cursor(elements, function):
 largura_da_janela = 900
 altura_da_janela = 970
 largura_da_tela, altura_da_tela = pyautogui.size()
-posicao_x = largura_da_tela - largura_da_janela - 15
-posicao_y = 2        
+posicao_x = largura_da_tela - largura_da_janela - 30
+posicao_y = 15        
 
 
 def relative_to_assets(path: str) -> Path:
@@ -287,7 +304,7 @@ canvas.create_text(
 
 canvas.create_image(640, 327, image=meowth_image, anchor="center")
 
-canvas.create_rectangle(
+chat = canvas.create_rectangle(
     0.0,
     735.0,
     900.0,
@@ -308,10 +325,10 @@ button = create_rounded_rect(canvas,   655.0,
     718.0, radius=20, fill="#9B3220")
 
 texto = canvas.create_text(
-    752.0,
+    740.0,
     654.0,
     anchor="nw",
-    text="STOP",
+    text="FINISH",
     fill="#F8F9FA",
     font=("Jaro Regular", 36 * -1)
 )
@@ -358,7 +375,7 @@ display_items = canvas.create_text(
     font=("Jaldi", 48 * -1)
 )
 
-money = canvas.create_text(
+display_money = canvas.create_text(
     119.0,
     412.0,
     anchor="nw",
