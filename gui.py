@@ -48,12 +48,13 @@ def update_text(text):
     canvas.itemconfig(display, text=text)
     window.update()
     
-def update_items(farmed_item):
+def update_items(farmed_item, money):
     canvas.itemconfig(display_items, text=("x " + farmed_item))
+    canvas.itemconfig(display_money, text=("R$ " + money))
     window.update()
     
 def update_money(money):
-    canvas.itemconfig(display_money, text=("~R$ " + money))
+    canvas.itemconfig(display_money, text=("R$ " + money))
     window.update()
 
 def move_1():
@@ -112,7 +113,6 @@ def press(tecla):
     pyautogui.press(tecla)
     
 # =================================== CORE =================================================
-
 def fishing():
     update_text("initiate...")
     global running 
@@ -124,20 +124,24 @@ def fishing():
     thief = 25
     payday = 20
     going_to_the_pokecenter()
-    keep_press('A', 1.6)
-    keep_press('S', 2)
+    keep_press('A', 1.1)
+    keep_press('S', 1.6)
     keep_press('D', 0.2)
     #  HORA DE PESCAR
     farmed_item = 0
     while running:
         if not running:
             break
-        if(thief == 15 or payday == 10):
+        if(thief == 0 or payday == 13):
+            time.sleep(7)
+            move_4()
+            update_text("I have no attacks...")
+            time.sleep(7)
             going_to_the_pokecenter()
             thief = 25
             payday = 20
-            keep_press('A', 1.6)
-            keep_press('S', 2)
+            keep_press('A', 1.1)
+            keep_press('S', 1.6)
             keep_press('D', 0.2)
         # =================================== BLOCO PARA CONFERIR SE TEM ITEM NO POKÉMON ================================================    
         item_attempt_counter = 0
@@ -146,9 +150,9 @@ def fishing():
         while hold_control_item is False and running:
             try:
                 hold_item = pyautogui.locateOnScreen('./image/hold_item.png', confidence=0.9)
-                farmed_item = farmed_item + 1
+                
                 update_text("Storing the stolen item")
-                update_items(str(farmed_item))
+               
                 pyautogui.moveTo(hold_item)
                 pyautogui.click()
                 time.sleep(0.5)
@@ -156,6 +160,8 @@ def fishing():
                 press('K')
                 time.sleep(0.5)
                 hold_control_item = True
+                farmed_item = farmed_item + 1
+                update_items(str(farmed_item), str((pokemon_killed_by_payday * average_money_per_pokemon) + (farmed_item * 5000)))
             except pyautogui.ImageNotFoundException:
                 item_attempt_counter = item_attempt_counter + 1
                 if(item_attempt_counter == 10):
@@ -206,7 +212,7 @@ def fishing():
             move_1()
             payday = payday - 1
             pokemon_killed_by_payday = pokemon_killed_by_payday + 1
-            update_money(str((pokemon_killed_by_payday * average_money_per_pokemon) + (farmed_item * 5000)))
+            update_money(str(((pokemon_killed_by_payday * average_money_per_pokemon) + (farmed_item * 5000))))
             time.sleep(9)
         
           
